@@ -1,0 +1,46 @@
+name: Publicar GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obter código
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Verificar tipos e gerar site
+        run: npm run build
+
+      - name: Atualizar branch de publicação
+        env:
+          GH_TOKEN: ${{ secrets.PAGES_DEPLOY_TOKEN }}
+          PAGES_REMOTE: ${{ github.server_url }}/${{ github.repository }}.git
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo 'Configure o segredo PAGES_DEPLOY_TOKEN com acesso de escrita ao conteúdo deste repositório.'
+            exit 1
+          fi
+          gh auth setup-git
+          node scripts/publish-pages.mjs
